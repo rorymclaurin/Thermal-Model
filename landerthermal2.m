@@ -46,12 +46,11 @@ temperatures = components(:,1);
 
 simstr = num2str(sim_time);
 runstr = num2str(run_time);
-eclipsestr = num2str(eclipse_fraction);
 latstr = num2str(latitude);
 
 check_message = strcat("Are you sure you want to start a run with sim time ",simstr,...
     " Lunar days, a maximum runtime of ",runstr,...
-    " minutes, and an eclipse duration of ",eclipsestr,"at a latitude of ",latstr,"? (Y/N)");
+    " minutes, at a latitude of ",latstr,"? (Y/N)");
 
 confirm = input(check_message);
 
@@ -71,7 +70,7 @@ if confirm == "Y"
     %first set of intrinsic changes so that timestep includes heat pipes
     %step does not yet exist - do not write changes that rely on timestep
     %during first iteration - or choose a sensible value if you must!
-    [components,conductances,view_factors,temperatures] = intrinsic_changes(components,conductances,view_factors,temperatures,time,eclipse_fraction,1000);
+    [components,conductances,view_factors,temperatures] = intrinsic_changes(components,conductances,view_factors,temperatures,time,1000);
     
     [cond_rows,cond_cols,cond_vals] = find(conductances);
     [vf_rows,vf_cols,vf_vals] = find(view_factors);      
@@ -89,6 +88,8 @@ if confirm == "Y"
     run_time_s = run_time*60;%run time in seconds
     step_total = (sim_time*3600/step);%total steps to do
     
+    %first solar intensity - assume on
+    solar_intensity = 1337;
     
 
     results = zeros(1+size(components,1),1+floor(step_total));
@@ -101,7 +102,7 @@ if confirm == "Y"
     %control_results = zeros(2+3,floor(step_total)); %change number of rows to 2+total systems tracked
     
     %control_track = zeros(size(control_results,1),1);
-    control_track = zeros(5,1);
+    %control_track = zeros(5,1);
 
 
 
@@ -109,13 +110,13 @@ if confirm == "Y"
 
     while and(time<sim_time*3600,clock<run_time_s)
         
-        temperatures(2,1) = lunar_control(time,eclipse_fraction);
+        temperatures(2,1) = lunar_control(time,solar_intensity);
 
         %find heat
         
-        [solar,solar_phi,solar_theta] = solar_improved(components,view_factors,time,latitude,longitude,initial_season_angle,horizon_elevation);
+        [solar,solar_phi,solar_theta,solar_intensity] = solar_improved(components,view_factors,time,latitude,longitude,initial_season_angle,horizon_elevation);
         [rad_gain,rad_loss] = radiative_flow(components,view_factors,temperatures,vf_compact);
-        [control_heat,control_track] = control(temperatures,time,eclipse_fraction,control_track);
+        [control_heat,control_track] = control(temperatures,time,control_track);
         
         heat_flow = step*(conductive_flow(cond_compact,temperatures)+control_heat+...
             components(:,2)+solar+(rad_gain-rad_loss)); 
@@ -169,7 +170,7 @@ if confirm == "Y"
         
         
         [new_components,new_conductances,new_view_factors,temperatures] = intrinsic_changes...
-            (components,conductances,view_factors,temperatures,time,eclipse_fraction,step);
+            (components,conductances,view_factors,temperatures,time,step);
         
         if not(and(isequal(new_components,components),...
                 and(isequal(new_conductances,conductances),isequal(new_view_factors,view_factors))))

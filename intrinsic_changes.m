@@ -1,4 +1,4 @@
-function [components,conductances,view_factors,temperatures] = intrinsic_changes(components,conductances,view_factors,temperatures,time,eclipse_fraction,step) %#ok<INUSL>
+function [components,conductances,view_factors,temperatures] = intrinsic_changes(components,conductances,view_factors,temperatures,time,step)
 
 %Can be used to implement a louvre by editing the emissivitites of
 %components
@@ -8,15 +8,15 @@ function [components,conductances,view_factors,temperatures] = intrinsic_changes
 
 %louvre (day night)
 
-if mod(time,672*3600)<(1-eclipse_fraction)*672*3600
+%if mod(time,672*3600)<(1-eclipse_fraction)*672*3600
     
-    components(3,4) = 0.9;%daytime emmisivity
+%    components(3,4) = 0.9;%daytime emmisivity
     
-else
+%else
     
-    components(3,4) = 0.5;%night emmisivity
+%    components(3,4) = 0.5;%night emmisivity
     
-end
+%end
 
 %Regolith Control
 

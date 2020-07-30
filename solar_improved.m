@@ -1,4 +1,4 @@
-function [heat,solar_phi,solar_theta] = solar_improved(components,view_factors,time,latitude,longitude,initial_season_angle,horizon_elevation)
+function [heat,solar_phi,solar_theta,solar_intensity] = solar_improved(components,view_factors,time,latitude,longitude,initial_season_angle,horizon_elevation)
 
 %calculates solar input to components of the lander
 
