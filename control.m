@@ -1,4 +1,4 @@
-function [heat,control_track] = control(temperatures,time,eclipse_fraction,control_track)
+function [heat,control_track] = control(temperatures,time,control_track)
 %Models thermal control systems in the spacecraft. 
 %Use the time value to build scheduled changes, such as turning on heaters
 %or heat pipes
