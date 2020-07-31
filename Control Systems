@@ -79,8 +79,9 @@ end
 
 
 %Moving system travelling due East - 30 degrees over 3 lunar days
+%note the conversion to radians - although inputs are in degrees for ease of visualisation, MATLAB defaults to radians, so all inputs are converted
 
-longitude = longitude + time*30/(3*3600*672);
+longitude = longitude + time*(30*pi/180)/(3*3600*672); 
 
 
 This example involves azimuthal tracking only. Implementing elevation tracking accurately would require editing view factors with the lunar surface - possible but complex for reasons detailed at the end of this document. It may be worth sacrificing some accuracy of albedo inputs to minimise complexity in that scenario.
