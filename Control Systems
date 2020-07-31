@@ -1,0 +1,137 @@
+This document is intended to explain the use of the functions "control" and "intrinsic_changes" to model thermal control systems and showcase examples of common appraoches. These functions are very open-ended, which gives flexibility but can also be daunting for new users. 
+
+Examples in this document will use capital letters e.g. X,Y to refer to component numbers. Where actual numbers are used, these are specific to the layout of the data being edited and should not be changed.
+
+
+The "control" function
+
+The function "control" deals with thermal control systems that work directly with heat. The clearest example of this is spot heaters. By using various conditions in the control fuction, we can simulate spot heaters that turn on at night, when specific temperature threshholds are reached, or periodically.
+
+Examples: 
+
+%temperature dependent spot heaters - 10 watts to component X
+
+if temperatures(X,1)<293
+    
+    heat(X,1) = heat(X,1)+10; %10 watts heating
+    
+end
+
+%night time spot heaters - 10 watts to component X and 20 to component Y
+
+if solar_intensity == 0
+
+    heat(X,1) = heat(X,1)+10
+
+    heat(Y,1) = heat(Y,1)+20
+    
+end
+
+
+
+
+
+The "intrinsic_changes" function
+
+The intrinsic changes function is used to edit properties of components or other simulation parameters, rather than directly apply heat. This can be used to implement louvres, heat pipes (particularly one-way), and even geometric changes such as through rotation of a panel. In the event that you want to use intrinsic changes to edit a variable it can't currently access, you need only edit it's inputs and outputs and the corresponding lines in landerthermal2.m
+There are some variables in particular that you should be careful editing - mostly any view factors with the "Vacuum" or "Lunar Surface" components. An explanation of the complications with these can be found at the end of this document.
+
+In order to maintain a reasonable timestep when properties are changed, the timestep is recalculated when changes are made to conductances, view factors or component properties. This may cause a slowdown of the simulation if changes are made at every iteration.
+
+
+Examples:
+
+%louvre altering emmissivity of a radiator (componenent X) between night and day
+
+if solar_intensity == 0
+    
+    components(X,4) = 0.5; %nighttime emmisivity
+    
+else
+    
+    components(X,4) = 0.5; %daytime emmisivity
+    
+end
+
+
+In the 2 following examples, (10000*0.01/1) represents the increase in conductance from a heat pipe with conductivity 1000W/mK, CSA 0.01m^2 and length 1m
+These numbers should be replaced as appropriate
+
+%Heat pipe between components X and Y
+
+if time == 0
+    
+   conductances(X,Y) = conductances(X,Y)+(10000*0.01/1);
+   
+   conductances(Y,X) = conductances(Y,X)+(10000*0.01/1);
+
+end
+
+
+%One-way heat pipe between X and Y
+
+if time == 0
+    
+    conductances(X,Y) = conductances(X,Y)+(10000*0.01/1);
+
+end
+
+
+
+%Moving system travelling due East - 30 degrees over 3 lunar days
+
+longitude = longitude + time*30/(3*3600*672);
+
+
+This example involves azimuthal tracking only. Implementing elevation tracking accurately would require editing view factors with the lunar surface - possible but complex for reasons detailed at the end of this document. It may be worth sacrificing some accuracy of albedo inputs to minimise complexity in that scenario.
+
+%sun azimuth tracking solar panel - component X
+
+components(X,6) = solar_phi;
+
+
+This example demonstrates the more complex processes that can be modelled in intrinsic_changes. Here, fresh, cold regolith is fed into the furnace at regular intervals. The hot regolith from the furnace is moved to the cooling chamber. Initially, there is no regolith, so the conductances are set to 0. After the first interval, there is regolith in the furnace but not the chamber. Finally, from the second interval onward, both sets of regolith 'exist' and so are given conductances. This code is still in use on our project, so the component numbers have been left as is. 
+
+%Regolith Control
+
+if time == 0
+    
+    conductances(51,52) = 0;
+    conductances(52,51) = 0;
+    
+    conductances(57,60) = 0;
+    conductances(60,57) = 0;
+    
+elseif floor((time/3600)/10)-floor(((time-step)/3600)/10)==1
+    
+    %10 hours assumed rover delivery interval - can change
+    
+    if not(conductances(51,52)==0)
+        
+        conductances(57,60) = 0.5; %make this the real number ED!!!
+        conductances(60,57) = 0.5;
+        
+    end
+    
+    conductances(51,52) = 0.936822929;
+    conductances(52,51) = 0.936822929;
+    
+    temperatures(60,1) = temperatures(51,1); %hot regolith goes to cooling chamber
+    temperatures(51,1) = 100; %entry temperature - can change
+
+end
+
+
+Note on editing of view factors with "Vacuum" and "Lunar Surface". 
+
+When data is imported into MATLAB from the Excel file, the view factors of all components with the lunar surface is subtracted from those with the vacuum:
+
+view_factors(:,1) = view_factors(:,1)-view_factors(:,2);
+
+This creates an asymmetric matrix, since view_factors(X,1) =/= view_factors(1,X)
+
+The model takes advantage of this by using view_factors(1,X) for solar input (since this is effectively external surface area), but using view_factors(X,1) for radiative losses (eliminating the overlap between the view factors for the vacuum and lunar surface). 
+
+If the view factor with the lunar surface is changed, view_factors(X,1) should be changed to reflect this. If somehow the view factor with the vacuum changes, both view_factors(X,1) and view_factors(1,X) should change.
+
+
