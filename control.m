@@ -1,4 +1,4 @@
-function [heat,control_track] = control(temperatures,time)
+function [heat] = control(temperatures,time)
 %Models thermal control systems in the spacecraft. 
 %Use the time value to build scheduled changes, such as turning on heaters
 %or heat pipes
