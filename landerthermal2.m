@@ -2,19 +2,19 @@
 %spacecraft
 %Remember to import the data from excel!
 
+component_count = 100; %number of components in the excel file - used to import data
 
-sim_time = 2; %measured in Lunar days
+sim_time = 2; %length of simulation measured in Lunar days
 
 run_time = 120; %measured in minutes - maximum acceptable runtime
 
 latitude = -80; %latitude of landing site
 
 longitude = 0; %longitude of landing site - can be faked to set start time of sim - has no other effect
-%higher longitude = start later in the day
 
 initial_season_angle = 0; %Defines the season at the start of the sim
 %0 is northern summer
-%Seasons aren't that significant unless your latitude is extreme!!
+%Seasons aren't that significant unless your latitude is extreme
 
 horizon_elevation = 0; %represents the position of the local horizon in the sky
 %if you are at the top of a hill, 
@@ -31,16 +31,11 @@ longitude = longitude*(pi/180);
 initial_season_angle = initial_season_angle*(pi/180);
 horizon_elevation = horizon_elevation*(pi/180);
                      
-
-
-
 %convert imported data
 [components,component_names,conductances,view_factors] = ...
-    excel_auto(60,"Matlab Thermal Model Data Entry.xlsx");
+    excel_auto(component_count,"Matlab Thermal Model Data Entry.xlsx");
 
 temperatures = components(:,1);
-
-
 
 %double check run
 
@@ -62,9 +57,7 @@ if confirm == "Y"
 
     %initialise the heat matrix
     heat_flow = 0*temperatures;
-    
-
-    
+       
     time = 0;%current simulation time
     
     %first set of intrinsic changes so that timestep includes heat pipes
@@ -72,6 +65,7 @@ if confirm == "Y"
     %during first iteration - or choose a sensible value if you must!
     [components,conductances,view_factors,temperatures] = intrinsic_changes(components,conductances,view_factors,temperatures,time,1000);
     
+    %extract relevant data - significantly improves runtime
     [cond_rows,cond_cols,cond_vals] = find(conductances);
     [vf_rows,vf_cols,vf_vals] = find(view_factors);      
             
