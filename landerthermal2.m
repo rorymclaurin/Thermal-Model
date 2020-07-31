@@ -92,11 +92,6 @@ if confirm == "Y"
     %solar_results = zeros(3+size(components,1),floor(step_total));
     
     %rejection_results = zeros(1+size(components,1),floor(step_total));
-    
-    %control_results = zeros(2+3,floor(step_total)); %change number of rows to 2+total systems tracked
-    
-    %control_track = zeros(size(control_results,1),1);
-    %control_track = zeros(5,1);
 
 
 
@@ -110,18 +105,15 @@ if confirm == "Y"
         
         [solar,solar_phi,solar_theta,solar_intensity] = solar_improved(components,view_factors,time,latitude,longitude,initial_season_angle,horizon_elevation);
         [rad_gain,rad_loss] = radiative_flow(components,view_factors,temperatures,vf_compact);
-        [control_heat,control_track] = control(temperatures,time,control_track);
+        control_heat = control(temperatures,time);
         
         heat_flow = step*(conductive_flow(cond_compact,temperatures)+control_heat+...
             components(:,2)+solar+(rad_gain-rad_loss)); 
         
-        
         %check components column matches
-
-
+        
         %update temps
         temperatures = temperatures + heat_flow./components(:,3);
-        %check components column matches
         
         
         time = time+step;%increment simulation time 
@@ -145,8 +137,6 @@ if confirm == "Y"
         %solar_results(3,step_count) = solar_theta;
 
         %solar_results(4:size(solar_results,1),step_count) = solar;
-        
-        %control_results(:,step_count) = control_track;
         
         
         for i = 1:100
@@ -201,7 +191,6 @@ if confirm == "Y"
 results(1,:) = results(1,:)/(3600*672);
 %solar_results(1,:) = solar_results(1,:)/(3600*672);
 %rejection_results(1,:) = rejection_results(1,:)/(3600*672);
-%control_results(1,:) = control_results(1,:)/(3600*672);
     
 clocks = num2str(clock);
     
