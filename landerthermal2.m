@@ -66,7 +66,7 @@ if confirm == "Y"
     %first set of intrinsic changes so that timestep includes heat pipes
     %step does not yet exist - do not write changes that rely on timestep
     %during first iteration - or choose a sensible value if you must!
-    [components,conductances,view_factors,temperatures,latitude,longitude,horizon_angle] = intrinsic_changes(components,conductances,view_factors,temperatures,time,1000,solar_intensity,latitude,longitude,horizon_angle,solar_phi,solar_theta);
+    [components,conductances,view_factors,temperatures,latitude,longitude,horizon_elevation] = intrinsic_changes(components,conductances,view_factors,temperatures,time,1000,solar_intensity,latitude,longitude,horizon_elevation,0,-pi/2);
     
     %extract relevant data - significantly improves runtime
     [cond_rows,cond_cols,cond_vals] = find(conductances);
@@ -154,8 +154,8 @@ if confirm == "Y"
         
         
         
-        [new_components,new_conductances,new_view_factors,temperatures,latitude,longitude,horizon_angle] = intrinsic_changes...
-            (components,conductances,view_factors,temperatures,time,step,solar_intensity,latitude,longitude,horizon_angle,solar_phi,solar_theta);
+        [new_components,new_conductances,new_view_factors,temperatures,latitude,longitude,horizon_elevation] = intrinsic_changes...
+            (components,conductances,view_factors,temperatures,time,step,solar_intensity,latitude,longitude,horizon_elevation,solar_phi,solar_theta);
         
         if not(and(isequal(new_components,components),...
                 and(isequal(new_conductances,conductances),isequal(new_view_factors,view_factors))))
