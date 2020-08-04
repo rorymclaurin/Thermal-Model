@@ -1,0 +1,79 @@
+Getting started with this thermal model
+
+Introduction
+
+This is a thermal model for simulating systems landed on the surface of the moon. It works by tracking the temperature of 'nodes' with user defined properties such as internal heat generation and thermal capacity and relationships with other nodes. New temperatures are calculated iteratively based on current values. This results in a discrete approximation of the solution to the heat equation. This is analagous to approximating a curve with a series of tangents. The timestep (discussed in more detail in section 1) is very important in ensuring the approximation is accurate.
+
+
+Section 1: Setting up your model - component parameters
+
+The model takes input from the Excel spreadsheet, a copy of which is included here. The spreadsheet is effectively used to define the geometry of your system, including materials, sizes and angles. Each row is referred to as a component, since this is typically the level of detail at which the model works. For example, to define a simple spacecraft, you might add a components called "Floor", "Roof", "North Wall" etc. Each of these components will become a node in the model. If a component is very large, and you expect that it might have very different temperatures in different parts of it, you could split it into two nodes i.e "Wall Panel Top" and "Wall Panel Bottom". Generally however this is unnessecary. 
+
+Components 1 and 2 are reserved for "Vacuum" and "Lunar Surface" respectively. You should not move or replace these - they are treated very differently in the code and serve important functions for calculating lunar albedo and solar input, among others. 
+
+For each component, you will need to provide an initial temperature and internal heat generation, a mass and specific heat capacity, an emmissivity and absorbtivity, and two angles defining the direction it faces. 
+
+The initial temperature is not very important, but a more realistic estimate will allow your results to converge to the 'real' temperatures faster. The internal heat generation will have a more significant impact on your final results - most components will likely have a zero here but most electronics will generate at least some heat.
+
+The mass and specific heat capacity are explained in more detail below because they have a significant impact on the runtime of the model.
+
+The absorbtivity and emmissivity can be significant for outward facing components, but may be irrelevant for others. If a component does not need these values (because it is entirely surrounded by other components) then you can put zeros here.
+
+The angles defining the direction a component 'faces' were designed mostly with panels, such as roofs and walls, in mind. They are used to determine when a component is heated by the sun and/or albedo from the surface of the moon. The specify the normal vector to the surface: so for example a roof would likely have a vertical vector, while a wall might have a horizontal one. The first angle specifies the azimuthal angle, with lunar north at 0. If your component faces straight up or down, this value won't have an impact so feel free to put 0. The second angle is elevation from the horizon, with horizontal being 0. In our roof example, this angle would be 90 degrees, and a floor would likely be -90. Many components such as antennas, don't really face a specific direction because they aren't flat surfaces. In this case, it usually makes sense to use the 'average' direction they face - where most of their surface area points. If this also doesnt really exist, any horizontal angle will do - the effect of the sun on components of this type is usually fairly small. 
+
+The mass and specific heat capacity are rolled into one 'component heat capacity' by MATLAB, but split here for ease of use. 
+As mentioned in the introduction, the timestep used by the model is very important to ensuring accuracy. The heat capacity of each component is vital to the calculation of a good timestep. If the capacity of a component is too small, this will make the timestep very small as well, causing your runtime to be extremely long. To avoid this, you must not create components with very small mass*specific heat capacity. For example, you should avoid modelling individual bolts or other minor elements. Their effects on the heat transfer between major components can be accounted for in other ways in this model. For a deeper understanding of the timestep calculation, open the function timestep.m
+
+
+Section 2 - Conductances
+
+The second sheet of the spreadsheet is used to specify the thermal conductances between the components defined in section 1. It takes the form of a matrix because in some scenarios, it can be useful to make these non-symmetric. Each value represents the thermal conductance - this is different from the thermal conductivity of the components in that it is independent of surface area or length - it has units W/K. It is also important to note that most of these conductances will be between seperate components/materials. This means that the heat conducted will be different to the conductivity of either component - empirically it is dependent on surface roughness, tightness of connection and a range of other factors. These are left to the users discretion - we have a found that a value of "Interface surface area"*"1 W/(K*m^2)" works well (i.e just enter the surface area that touches).
+
+A key caveat of this model is that it will not simulate insulation directly. Insulation is designed to maintain a thermal gradient, while the model expressly assumes that components do not have a significant thermal gradient across them. To model insulation, you should create thermal conductances between components on opposite sides of it that are reduced to represent the effects of the insulation. In the event that your insulation is external (e.g. an MLI blanket on an exterior face), the emissivity of that face can be reduced to approximate this.
+
+Similarly, if you want to account for heat transfer between components due to a bolt or wire which is too small to model as its own component - as discussed in section 1 - then you can increase the conductance between components to represent this.
+
+You should not specify a conductance between any component and "Vacuum" (component 1), since the vacuum does not conduct. You may specify conductances with the lunar surface - it is modelled as a heat sink with a fixed temperature that changes at night.
+
+
+
+Section 3 - View Factors
+
+The view factors matrix operates in exactly the same way as the conductances matrix, except that it specifies radiative interactions between components. 
+
+It is is very important to note that the view factors matrix does not actually contain view factors (sorry!). It instead contains view factor*surface area values (with units in m^2) - these can be considered "effective areas". View factors can be hard to calculate, and there are a range of approximations in the literature for common geometries. Some of these are also on the spreadsheet. The useful property of "effective areas" is that they are symmetric, so view factors will likely be a symmetric matrix in the spreadsheet.
+
+The special components "Vacuum" and "Lunar Surface" have very significant roles in the view factors matrix. A component's view factor with the vacuum determines its input from the sun - this should be it's surface area facing out of the system, multiplied by a view factor of 1 (because it is surrounded by vacuum). The view factor with the lunar surface is more variable, but still important since it determines albedo inputs. For a vertical panel such as a wall, the view factor is approximately 0.5 and so the value of the spreadsheet should be 'external surface area'*0.5.
+You might notice that it's possible for for a component to 'see' the vacuum and lunar surface in the same direction - they overlap in the field of view. This might cause the total view factor for a component to be greater than 1. The program accounts for this when it extracts the data from Excel - there is no need to change your view factors to 'fix' this.
+
+
+Section 4 - Running the model
+
+Hopefully by this point your Excel spreadsheet is fully populated with values. Before you run the model, you should double check there are no blank cells - if there are you should fill these with zeros (or the correct value if they were supposed to have data!). 
+In order for MATLAB to find the Excel spreadsheet, it must be in the same folder as the MATLAB code - make a copy of it and paste it there. It must also keep the same name - MATLAB Thermal Model Data Entry.xlsx
+
+In MATLAB, open the script landerthermal2.m
+This is the command script that controls all the other code. The first 25 or so lines has a series of variables that you should edit to reflect your simulation scenario. 
+The sim_time specifies the amount of time you want to simulate. It is measured in Lunar Days. It is reccomended to choose a small value for this (e.g. 0.1) when you first run the model to check everything is working before you run a longer sim. The model can be used to simulate your full mission duration, or segments of interest, once you are confident it is set up correctly. For very long mission durations (order years), the model will not accurately simulate variation in solar motion over time since it does not account for some effects.
+The run_time is there to end the simulation if it gets stuck or runs for longer than you expected. It is measured in minutes. You should choose a length around the maximum you are willing to wait, but significantly greater than you expect the run to take.
+The latitude and longitude refer to your position on the moon and are measured in degrees. The longitude will not have a sigificant effect on your results, but can be used to set the time of day at which the sim starts - it defaults to midnight at the prime meridian.
+The initial_season_angle determines the time of year at which the sim starts. Since typical mission durations are often of the order of several lunar days, the season will change considerably over the course of the sim. However, seasons on the moon are less dramatic than those on Earth at most latitudes. 0 degrees here defaults to midsummer for the northern hemisphere of the moon.
+horizon_elevation is an angle measured in degrees, used to specify an average elevation of the surrounding terrain relative to your position. It is most useful for simulating lighting conditions in a crater, but can also be used for landing sites on top of hills or ridges. Some formulae are given in the comments below the variable. We are currently working on the possibility of more detailed terrain, which may replace this.
+
+Once you've set all of these, run the script. After a few seconds, a prompt will appear in the Command Window. This will double check that you want to proceed with the simulation and remind you of the values you entered. To confirm, you must type 'Y' (with the quotation marks, MATLAB will not recognise it without). If you don't want to proceed, type something else.
+
+Once the simulation is running, it will update you with approximate percentages as it proceeds. Note that for very large simulations, there may be some time between "100%" and the simulation actually finishing - some results processing is done to change units.
+
+To plot your results, you can use the scripts "results_processing" (all the results), "results_compression" (all the results, but it lets you skip some data points which will speed up the plotting) or "custom_results" (which lets you specify which components you want to see by component number). Alternatively, you can plot or interrogate them yourself. Be aware that the time of each result is stored in row 1, so each component's data is stored in row 'component number'+1
+
+Section 5 - Summary
+
+1. Fill out the spreadsheet. Remember to poulate every cell and not to include small components, insulation as a component or conductances with the vacuum.
+
+2. Fill out the simulation parameters
+
+3. Run the simulation
+
+
+Enjoy!
+

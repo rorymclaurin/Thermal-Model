@@ -1,0 +1,23 @@
+This guide is for using the script "Solar Panels" and the function "solar_panel_power".
+
+The "Solar Panels" script was written to take advantage of the solar motion model already developed for the thermal model. The two models are seperate and do not call on each other, but we've kept them together for now because any fixes/upgrades will likely be applied to both if they relate to the solar motion function.
+The script allows you to define an array of solar panels and specify your position on the lunar surface in the same way as the thermal model (latitude, longitude, horizon elevation, season angle). For a more detailed explanation of how these variables work, please see either the documantation for the thermal model or the comments in the code - most of them are fairly simple but the horizon_elevation in particular can be tricky.
+
+Solar panels are defined in the "panels" variable as a list of triplets of the form (azimuth, elevation, surface area). The azimuth and elevation angles refer to the normal vector of the panels, and are measured in degrees.
+For example, if we wanted to define vertical panel facing North, a vertical panel facing south-east and a panel facing straight up, each with area 3m^2, this would be:
+
+panels = (0,0,3;135,0,3;0,90,3);
+
+It is worth noting that the order of the panels is irrelevant, and that in the case of the final panel in the example, we chose an azimuth of 0 by default, but this could have been anything (since the azimuth angle doesn't really exist for this surface).
+
+
+Once you have defined your panels and set other variables, such as panel_efficiency (this is exactly what you'd expect - the default is the value we're using for our project), latitude and length of simulation (sim_time, measured in lunar days), you should be ready to go. 
+
+When you run the script "Solar Panels", it will automatically produce 3 plots of the results. 
+The bar chart (figure 3 if you have no other figures open) shows the total energy produced by each solar panel over the span of the simulation, allowing you to compare average performance.
+The second plot (figure 2 if you have no other figures open) shows the power output of each panel individually against time. This can be quite messy, but may reveal that an otherwise poorly performing panel is vital at certain times.
+The final plot (figure 1 if you have no other figures open) shows total power againt time. This will likely be the most useful for evaluating a configuration holistically and as an imput for designing duty cycles etc.
+The data for each panel will remain stored in "results" if you wish to further interrogate it.
+
+A note on step length:
+Unlike the thermal model, the step length for this simualation is relatively arbitrary - it will cause instability or innacuracy if the step length is too high. However, the smoothness of the results will be affected. 100 seconds has been chosen as the default - we have found this a good compromise between speed and smoothness, and saw no percetible improvement in smoothness when this was decreased. If you wish to change the step length for some reason, you will have to edit the code more directly. The size of "results", the size of the for first for loop and several terms referencing the loop variable i all depend on the step length. Most are fairly clear: replace the number 100 with your new length. In the size of the for loop, you are dividing - change 36 back to 3600 and then add the required division. If you find a useful change, or that you have a need to make these changes regularly, please let me know - I can update the code to make this change easier, but it hasn't yet come up as a priority.

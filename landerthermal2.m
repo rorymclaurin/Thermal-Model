@@ -60,10 +60,13 @@ if confirm == "Y"
        
     time = 0;%current simulation time
     
+    %first solar intensity - assume off
+    solar_intensity = 0;
+    
     %first set of intrinsic changes so that timestep includes heat pipes
     %step does not yet exist - do not write changes that rely on timestep
     %during first iteration - or choose a sensible value if you must!
-    [components,conductances,view_factors,temperatures] = intrinsic_changes(components,conductances,view_factors,temperatures,time,1000);
+    [components,conductances,view_factors,temperatures,latitude,longitude,horizon_elevation] = intrinsic_changes(components,conductances,view_factors,temperatures,time,1000,solar_intensity,latitude,longitude,horizon_elevation,0,-pi/2);
     
     %extract relevant data - significantly improves runtime
     [cond_rows,cond_cols,cond_vals] = find(conductances);
@@ -81,9 +84,7 @@ if confirm == "Y"
     clock = 0;%current run time
     run_time_s = run_time*60;%run time in seconds
     step_total = (sim_time*3600/step);%total steps to do
-    
-    %first solar intensity - assume on
-    solar_intensity = 1337;
+   
     
 
     results = zeros(1+size(components,1),1+floor(step_total));
@@ -105,7 +106,7 @@ if confirm == "Y"
         
         [solar,solar_phi,solar_theta,solar_intensity] = solar_improved(components,view_factors,time,latitude,longitude,initial_season_angle,horizon_elevation);
         [rad_gain,rad_loss] = radiative_flow(components,view_factors,temperatures,vf_compact);
-        control_heat = control(temperatures,time);
+        control_heat = control(temperatures,time,solar_intensity);
         
         heat_flow = step*(conductive_flow(cond_compact,temperatures)+control_heat+...
             components(:,2)+solar+(rad_gain-rad_loss)); 
@@ -153,8 +154,8 @@ if confirm == "Y"
         
         
         
-        [new_components,new_conductances,new_view_factors,temperatures] = intrinsic_changes...
-            (components,conductances,view_factors,temperatures,time,step);
+        [new_components,new_conductances,new_view_factors,temperatures,latitude,longitude,horizon_elevation] = intrinsic_changes...
+            (components,conductances,view_factors,temperatures,time,step,solar_intensity,latitude,longitude,horizon_elevation,solar_phi,solar_theta);
         
         if not(and(isequal(new_components,components),...
                 and(isequal(new_conductances,conductances),isequal(new_view_factors,view_factors))))
