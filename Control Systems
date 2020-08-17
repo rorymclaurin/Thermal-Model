@@ -6,6 +6,7 @@ Examples in this document will use capital letters e.g. X,Y to refer to componen
 The "control" function
 
 The function "control" deals with thermal control systems that work directly with heat. The clearest example of this is spot heaters. By using various conditions in the control fuction, we can simulate spot heaters that turn on at night, when specific temperature threshholds are reached, or periodically.
+We can also simulate cooling. The key thing to note here is it's fine for the "heat" variable to have negative entries,so we can do this by subtraction.
 
 Examples: 
 
@@ -27,6 +28,24 @@ if solar_intensity == 0
     
 end
 
+%temperature dependent spot cooling - 10 watts to component X
+
+if temperatures(X,1)>293
+    
+    heat(X,1) = heat(X,1)-10; %10 watts cooling
+    
+end
+
+The last example is fairly unrealistic - heat will likely be moved instead:
+
+%temperature dependent spot cooling - 10 watts from component X to Y
+
+if temperatures(X,1)>293
+    
+    heat(X,1) = heat(X,1)-10; %10 watts cooling
+    heat(Y,1) = heat(Y,1)+10; %10 watts heating
+    
+end
 
 
 
