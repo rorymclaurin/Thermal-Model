@@ -50,8 +50,6 @@ check_message = strcat("Are you sure you want to start a run with sim time ",sim
 confirm = input(check_message);
 
 if confirm == "Y"
-    
-    sim_time = sim_time*672;
         
     tic %start the stopwatch
 
@@ -83,7 +81,7 @@ if confirm == "Y"
     step_count = 0;%number of steps completed
     clock = 0;%current run time
     run_time_s = run_time*60;%run time in seconds
-    step_total = (sim_time*3600/step);%total steps to do
+    step_total = (sim_time*3600*672/step);%total steps to do
    
     
 
@@ -98,7 +96,7 @@ if confirm == "Y"
 
     %%%%%%%%%%%%% iteration %%%%%%%%%%%%%%%
 
-    while and(time<sim_time*3600,clock<run_time_s)
+    while and(time<sim_time*3600*672,clock<run_time_s)
         
         temperatures(2,1) = lunar_control(time,solar_intensity);
 
@@ -140,16 +138,13 @@ if confirm == "Y"
         %solar_results(4:size(solar_results,1),step_count) = solar;
         
         
-        for i = 1:100
             
-            if and(floor(time*100/(sim_time*3600))==i,...
-                    not(floor((time-step)*100/(sim_time*3600))==i))
-                
-                percentage = num2str(1*i);
-                
-                disp(strcat(percentage,"% complete"))
-                
-            end
+        if floor(time*100/(sim_time*672*3600))-floor((time-step)*100/(sim_time*672*3600))>0
+
+            percentage = num2str(floor(time*100/(sim_time*672*3600)));
+
+            disp(strcat(percentage,"% complete"))
+
         end
         
         
