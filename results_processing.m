@@ -8,7 +8,7 @@ for i = 4:size(results,1)
     
     plot(results(1,:),results(i,:),'LineWidth',2)
     
-    plotter = num2str(i);
+    plotter = num2str(i-3);
     
     disp(strcat('plotted ',plotter,' components'))
     
