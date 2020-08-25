@@ -23,6 +23,7 @@ components(:,6:7) = numeric_data(:,7:8)*(2*pi/360);
 
 components(1,3) = inf;
 components(2,3) = inf;
+components(1,5) = 1; %vacuum does not reflect
 
 
 
@@ -36,8 +37,6 @@ view_range = strcat("D3:",excel_col(3+component_count),...
     num2str(2+component_count));
 
 view_factors = readmatrix(sheet_name,'Sheet','View Factor Matrix','Range',view_range);
-
-view_factors(:,1) = view_factors(:,1)-view_factors(:,2);
 
 end
 
