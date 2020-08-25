@@ -2,13 +2,13 @@
 %spacecraft
 %Remember to import the data from excel!
 
-component_count = 100; %number of components in the excel file - used to import data
+component_count = 20; %number of components in the excel file - used to import data
 
-sim_time = 2; %length of simulation measured in Lunar days
+sim_time = 0.005; %length of simulation measured in Lunar days
 
-run_time = 120; %measured in minutes - maximum acceptable runtime
+run_time = 10; %measured in minutes - maximum acceptable runtime
 
-latitude = -80; %latitude of landing site
+latitude = 0; %latitude of landing site
 
 longitude = 0; %longitude of landing site - can be faked to set start time of sim - has no other effect
 
@@ -16,7 +16,7 @@ initial_season_angle = 0; %Defines the season at the start of the sim
 %0 is northern summer
 %Seasons aren't that significant unless your latitude is extreme
 
-horizon_elevation = 0; %represents the position of the local horizon in the sky
+horizon_elevation = 90; %represents the position of the local horizon in the sky
 %if you are at the top of a hill, 
 %this is -asin("moon radius"/"elevation + moon radius")
 %if you are in a crater this is atan("crater height"/"crater radius")
@@ -50,6 +50,8 @@ check_message = strcat("Are you sure you want to start a run with sim time ",sim
 confirm = input(check_message);
 
 if confirm == "Y"
+    
+    sim_time = sim_time*672;
         
     tic %start the stopwatch
 
@@ -74,6 +76,11 @@ if confirm == "Y"
 
     vf_compact = [vf_rows,vf_cols,vf_vals];
     
+    %Create radiation networks
+    
+    [network_list,network_matrices,network_area_inputs,network_absorptions] = ...
+        reflectance_net(components, view_factors, vf_compact);
+    
     %calculate timestep (seconds)
     step = timestep(conductances,components,view_factors);
 
@@ -81,7 +88,7 @@ if confirm == "Y"
     step_count = 0;%number of steps completed
     clock = 0;%current run time
     run_time_s = run_time*60;%run time in seconds
-    step_total = (sim_time*3600*672/step);%total steps to do
+    step_total = (sim_time*3600/step);%total steps to do
    
     
 
@@ -96,20 +103,19 @@ if confirm == "Y"
 
     %%%%%%%%%%%%% iteration %%%%%%%%%%%%%%%
 
-    while and(time<sim_time*3600*672,clock<run_time_s)
+    while and(time<sim_time*3600,clock<run_time_s)
         
         temperatures(2,1) = lunar_control(time,solar_intensity);
 
         %find heat
         
         [solar,solar_phi,solar_theta,solar_intensity] = solar_improved(components,view_factors,time,latitude,longitude,initial_season_angle,horizon_elevation);
-        [rad_gain,rad_loss] = radiative_flow(components,view_factors,temperatures,vf_compact);
+        rad_heat = network_rad(components,temperatures,network_list,network_matrices,network_area_inputs,network_absorptions);
         control_heat = control(temperatures,time,solar_intensity);
         
         heat_flow = step*(conductive_flow(cond_compact,temperatures)+control_heat+...
-            components(:,2)+solar+(rad_gain-rad_loss)); 
+            components(:,2)+solar+rad_heat); 
         
-        %check components column matches
         
         %update temps
         temperatures = temperatures + heat_flow./components(:,3);
@@ -138,10 +144,9 @@ if confirm == "Y"
         %solar_results(4:size(solar_results,1),step_count) = solar;
         
         
-            
-        if floor(time*100/(sim_time*672*3600))-floor((time-step)*100/(sim_time*672*3600))>0
+        if floor(time*100/(sim_time*3600))-floor((time-step)*100/(sim_time*3600))>0
 
-            percentage = num2str(floor(time*100/(sim_time*672*3600)));
+            percentage = num2str(floor(time*100/(sim_time*3600)));
 
             disp(strcat(percentage,"% complete"))
 
@@ -154,7 +159,7 @@ if confirm == "Y"
         
         if not(and(isequal(new_components,components),...
                 and(isequal(new_conductances,conductances),isequal(new_view_factors,view_factors))))
-            
+
             components=new_components;
             conductances=new_conductances;
             view_factors=new_view_factors;
@@ -162,12 +167,17 @@ if confirm == "Y"
             [cond_rows,cond_cols,cond_vals] = find(conductances);
             [vf_rows,vf_cols,vf_vals] = find(view_factors);
             
-            
             cond_compact = ...
                 [cond_rows,cond_cols,cond_vals];
             
             vf_compact = ...
                 [vf_rows,vf_cols,vf_vals];
+            
+            %updating rad networks
+                
+            [network_list,network_matrices,network_area_inputs,network_absorptions] = ...
+            reflectance_net(components, view_factors, vf_compact);
+                
             
             %calculate timestep (seconds)
             step = timestep(conductances,components,view_factors);
