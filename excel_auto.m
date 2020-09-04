@@ -32,11 +32,17 @@ conductance_range = strcat("D3:",excel_col(3+component_count),...
 
 conductances = readmatrix(sheet_name,'Sheet','Conductance Matrix','Range',conductance_range);
 
+conductances(2,:) = 0*conductances(2,:);
+conductances(:,2) = 0*conductances(:,2);
+
 
 view_range = strcat("D3:",excel_col(3+component_count),...
     num2str(2+component_count));
 
 view_factors = readmatrix(sheet_name,'Sheet','View Factor Matrix','Range',view_range);
+
+view_factors(:,1) = view_factors(:,1)+view_factors(:,2);
+view_factors(:,2) = 0*view_factors(:,2);
 
 end
 

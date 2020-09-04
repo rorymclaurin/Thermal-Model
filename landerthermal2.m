@@ -8,28 +8,7 @@ sim_time = 0.005; %length of simulation measured in Lunar days
 
 run_time = 10; %measured in minutes - maximum acceptable runtime
 
-latitude = 0; %latitude of landing site
-
-longitude = 0; %longitude of landing site - can be faked to set start time of sim - has no other effect
-
-initial_season_angle = 0; %Defines the season at the start of the sim
-%0 is northern summer
-%Seasons aren't that significant unless your latitude is extreme
-
-horizon_elevation = 90; %represents the position of the local horizon in the sky
-%if you are at the top of a hill, 
-%this is -asin("moon radius"/"elevation + moon radius")
-%if you are in a crater this is atan("crater height"/"crater radius")
-%to guarantee PSR set as 90 degrees
-%IMPORTANT: the program assumes you have entered your value in degrees and
-%will convert to radians later. If you type a formula as above in directly,
-%convert using formula horizon_elevation = 180*atan(...)/pi
-
-%Change input angles to radians
-latitude = latitude*(pi/180);
-longitude = longitude*(pi/180);
-initial_season_angle = initial_season_angle*(pi/180);
-horizon_elevation = horizon_elevation*(pi/180);
+spin_rate = 1; %measured in RPM
                      
 %convert imported data
 [components,component_names,conductances,view_factors] = ...
@@ -41,11 +20,10 @@ temperatures = components(:,1);
 
 simstr = num2str(sim_time);
 runstr = num2str(run_time);
-latstr = num2str(latitude);
 
 check_message = strcat("Are you sure you want to start a run with sim time ",simstr,...
     " Lunar days, a maximum runtime of ",runstr,...
-    " minutes, at a latitude of ",latstr,"? (Y/N)");
+    " minutes? (Y/N)");
 
 confirm = input(check_message);
 
@@ -66,15 +44,15 @@ if confirm == "Y"
     %first set of intrinsic changes so that timestep includes heat pipes
     %step does not yet exist - do not write changes that rely on timestep
     %during first iteration - or choose a sensible value if you must!
-    [components,conductances,view_factors,temperatures,latitude,longitude,horizon_elevation] = intrinsic_changes(components,conductances,view_factors,temperatures,time,1000,solar_intensity,latitude,longitude,horizon_elevation,0,-pi/2);
+    [components,conductances,view_factors,temperatures] = intrinsic_changes(components,conductances,view_factors,temperatures,time,1000,solar_intensity);
     
     %extract relevant data - significantly improves runtime
     [cond_rows,cond_cols,cond_vals] = find(conductances);
-    [vf_rows,vf_cols,vf_vals] = find(view_factors);      
+    [vf_rows,vf_cols,vf_vals] = find(view_factors(2:size(view_factors,1),2:size(view_factors,2)));     
             
     cond_compact =[cond_rows,cond_cols,cond_vals];
 
-    vf_compact = [vf_rows,vf_cols,vf_vals];
+    vf_compact = [vf_rows+1,vf_cols+1,vf_vals];
     
     %Create radiation networks
     
@@ -97,24 +75,23 @@ if confirm == "Y"
     
     %solar_results = zeros(3+size(components,1),floor(step_total));
     
-    %rejection_results = zeros(1+size(components,1),floor(step_total));
+    rejection_results = zeros(2,floor(step_total));
 
 
 
     %%%%%%%%%%%%% iteration %%%%%%%%%%%%%%%
 
     while and(time<sim_time*3600,clock<run_time_s)
-        
-        temperatures(2,1) = lunar_control(time,solar_intensity);
 
         %find heat
         
-        [solar,solar_phi,solar_theta,solar_intensity] = solar_improved(components,view_factors,time,latitude,longitude,initial_season_angle,horizon_elevation);
+        [solar,solar_phi,solar_theta,solar_intensity] = solar_improved(components,view_factors,time,spin_rate);
         rad_heat = network_rad(components,temperatures,network_list,network_matrices,network_area_inputs,network_absorptions);
         control_heat = control(temperatures,time,solar_intensity);
+        vacuum_heat = vacuum_loss(components,view_factors,temperatures); %this is a loss, so outputs negative values
         
         heat_flow = step*(conductive_flow(cond_compact,temperatures)+control_heat+...
-            components(:,2)+solar+rad_heat); 
+            components(:,2)+solar+rad_heat+vacuum_heat); 
         
         
         %update temps
@@ -131,9 +108,9 @@ if confirm == "Y"
 
         results(2:size(results,1),1+step_count) = temperatures;
         
-        %rejection_results(1,step_count) = time;
+        rejection_results(1,step_count) = time;
 
-        %rejection_results(2:size(rejection_results,1),step_count) = rad_loss;
+        rejection_results(2,step_count) = -sum(vacuum_heat,1);
         
         %solar_results(1,step_count) = time;
         
@@ -154,8 +131,7 @@ if confirm == "Y"
         
         
         
-        [new_components,new_conductances,new_view_factors,temperatures,latitude,longitude,horizon_elevation] = intrinsic_changes...
-            (components,conductances,view_factors,temperatures,time,step,solar_intensity,latitude,longitude,horizon_elevation,solar_phi,solar_theta);
+        [new_components,new_conductances,new_view_factors,temperatures] = intrinsic_changes(components,conductances,view_factors,temperatures,time,step,solar_intensity);
         
         if not(and(isequal(new_components,components),...
                 and(isequal(new_conductances,conductances),isequal(new_view_factors,view_factors))))
@@ -165,13 +141,13 @@ if confirm == "Y"
             view_factors=new_view_factors;
             
             [cond_rows,cond_cols,cond_vals] = find(conductances);
-            [vf_rows,vf_cols,vf_vals] = find(view_factors);
+            [vf_rows,vf_cols,vf_vals] = find(view_factors(2:size(view_factors,1),2:size(view_factors,2)));
             
             cond_compact = ...
                 [cond_rows,cond_cols,cond_vals];
             
             vf_compact = ...
-                [vf_rows,vf_cols,vf_vals];
+                [vf_rows+1,vf_cols+1,vf_vals];  % we add 1 because we trimmed a row/column off view_factors
             
             %updating rad networks
                 
@@ -183,20 +159,13 @@ if confirm == "Y"
             step = timestep(conductances,components,view_factors);
             
         end
-        
-        
-        
-
-        
-
-
 
 
     end
     
 results(1,:) = results(1,:)/(3600*672);
 %solar_results(1,:) = solar_results(1,:)/(3600*672);
-%rejection_results(1,:) = rejection_results(1,:)/(3600*672);
+rejection_results(1,:) = rejection_results(1,:)/(3600*672);
     
 clocks = num2str(clock);
     
