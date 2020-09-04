@@ -45,6 +45,13 @@ for current_vf = 1:size(vf_compact,1)
         
         %now we populate the new network
         
+        if or(network_list(network_count,1)<=2,network_list(network_count,2)<=2)
+            
+            %we don't want to extend networks that involve the vacuum or lunar surface, so
+            %we stop here
+            
+        else
+
         %we have to loop through all components more than once in case
         %later additions open more 
         
@@ -52,55 +59,57 @@ for current_vf = 1:size(vf_compact,1)
         
         net_comp_count = 2; %tracks number of components in network
         
-        while stability_check == 0 %if this is 1 then no more can be added
-            
-            stability_check = 1; %will get reset when a component is added
-            
-            for component_tracker = 1:size(components,1)
-                
-                if sum((network_list(network_count,:)==component_tracker))==1
-                    
-                    %component already in network, so we don't worry about
-                    %it
-                    
-                else
-                    
-                    link_count = 0; %number of network components that share a vf with the one being considered
-                    
-                    for comparison_tracker = 1:net_comp_count %network component currently being considered
-                        
-                        if not(view_factors(component_tracker,network_list(network_count,comparison_tracker))==0)
-                            
-                            link_count = link_count+1;
-                            
+            while stability_check == 0 %if this is 1 then no more can be added
+
+                stability_check = 1; %will get reset when a component is added
+
+                for component_tracker = 3:size(components,1) %we exclude the vacuum and LS from this search
+
+                    if sum((network_list(network_count,:)==component_tracker))==1
+
+                        %component already in network, so we don't worry about
+                        %it
+
+                    else
+
+                        link_count = 0; %number of network components that share a vf with the one being considered
+
+                        for comparison_tracker = 1:net_comp_count %network component currently being considered
+
+                            if not(view_factors(component_tracker,network_list(network_count,comparison_tracker))==0)
+
+                                link_count = link_count+1;
+
+                            end
+
                         end
-                        
-                    end
-                    
-                    if link_count>1
-                        
-                        %if link_count is less than net_comp_count, then
-                        %there is a component the new one does not 'see'
-                        %this implies that the network is a merged network
-                        
-                        if link_count<net_comp_count
-                            
-                            merged_tracker(network_count,1) = 1;
-                            
+
+                        if link_count>1
+
+                            %if link_count is less than net_comp_count, then
+                            %there is a component the new one does not 'see'
+                            %this implies that the network is a merged network
+
+                            if link_count<net_comp_count
+
+                                merged_tracker(network_count,1) = 1;
+
+                            end
+
+                            net_comp_count = net_comp_count + 1;
+
+                            network_list(network_count,net_comp_count) = component_tracker;
+
+                            stability_check = 0;
+
                         end
-                        
-                        net_comp_count = net_comp_count + 1;
-                        
-                        network_list(network_count,net_comp_count) = component_tracker;
-                        
-                        stability_check = 0;
-                        
+
                     end
-                    
+
                 end
 
             end
-
+            
         end
   
     end
@@ -116,7 +125,19 @@ network_max_size = max(network_sizes);
 
 network_list = network_list(1:network_count,1:network_max_size);
 
-merged_tracker = merged_tracker(1:network_count,1);
+if size(merged_tracker,1)>network_count
+
+    merged_tracker = merged_tracker(1:network_count,1);
+
+else
+    
+    merged_placeholder = zeros(network_count,1);
+    
+    merged_placeholder(1:size(merged_tracker,1),1) = merged_tracker;
+    
+    merged_tracker = merged_placeholder;
+end
+
 
 
 %This section aims to generate a matrix (representing the system of linear equations) for each network
@@ -188,6 +209,11 @@ for current_network = 1:network_count
     network_matrices(1:network_sizes(current_network,1),1:network_sizes(current_network,1),current_network) = ...
         eye(network_sizes(current_network,1))-...
         network_matrices(1:network_sizes(current_network,1),1:network_sizes(current_network,1),current_network);
+    
+    %step 5: invert - new and experimental
+    
+    network_matrices(1:network_sizes(current_network,1),1:network_sizes(current_network,1),current_network) = ...
+        inv(network_matrices(1:network_sizes(current_network,1),1:network_sizes(current_network,1),current_network));
 
     
 end
