@@ -37,7 +37,7 @@ for current_network = 1:network_count
         1:network_sizes(current_network,1),current_network);
     
     network_solutions(1:network_sizes(current_network,1),current_network) = ...
-        extracted_matrix\network_heat_inputs(1:network_sizes(current_network,1),current_network);
+        extracted_matrix*network_heat_inputs(1:network_sizes(current_network,1),current_network);
     
 end
 

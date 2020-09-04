@@ -70,11 +70,11 @@ if confirm == "Y"
     
     %extract relevant data - significantly improves runtime
     [cond_rows,cond_cols,cond_vals] = find(conductances);
-    [vf_rows,vf_cols,vf_vals] = find(view_factors);      
+    [vf_rows,vf_cols,vf_vals] = find(view_factors(2:size(view_factors,1),2:size(view_factors,2)));     
             
     cond_compact =[cond_rows,cond_cols,cond_vals];
 
-    vf_compact = [vf_rows,vf_cols,vf_vals];
+    vf_compact = [vf_rows+1,vf_cols+1,vf_vals];
     
     %Create radiation networks
     
@@ -97,7 +97,7 @@ if confirm == "Y"
     
     %solar_results = zeros(3+size(components,1),floor(step_total));
     
-    %rejection_results = zeros(1+size(components,1),floor(step_total));
+    rejection_results = zeros(2,floor(step_total));
 
 
 
@@ -112,9 +112,10 @@ if confirm == "Y"
         [solar,solar_phi,solar_theta,solar_intensity] = solar_improved(components,view_factors,time,latitude,longitude,initial_season_angle,horizon_elevation);
         rad_heat = network_rad(components,temperatures,network_list,network_matrices,network_area_inputs,network_absorptions);
         control_heat = control(temperatures,time,solar_intensity);
+        vacuum_heat = vacuum_loss(components,view_factors,temperatures); %this is a loss, so outputs negative values
         
         heat_flow = step*(conductive_flow(cond_compact,temperatures)+control_heat+...
-            components(:,2)+solar+rad_heat); 
+            components(:,2)+solar+rad_heat+vacuum_heat); 
         
         
         %update temps
@@ -131,9 +132,9 @@ if confirm == "Y"
 
         results(2:size(results,1),1+step_count) = temperatures;
         
-        %rejection_results(1,step_count) = time;
+        rejection_results(1,step_count) = time;
 
-        %rejection_results(2:size(rejection_results,1),step_count) = rad_loss;
+        rejection_results(2,step_count) = -sum(vacuum_heat,1);
         
         %solar_results(1,step_count) = time;
         
@@ -165,13 +166,13 @@ if confirm == "Y"
             view_factors=new_view_factors;
             
             [cond_rows,cond_cols,cond_vals] = find(conductances);
-            [vf_rows,vf_cols,vf_vals] = find(view_factors);
+            [vf_rows,vf_cols,vf_vals] = find(view_factors(2:size(view_factors,1),2:size(view_factors,2)));
             
             cond_compact = ...
                 [cond_rows,cond_cols,cond_vals];
             
             vf_compact = ...
-                [vf_rows,vf_cols,vf_vals];
+                [vf_rows+1,vf_cols+1,vf_vals];  % we add 1 because we trimmed a row/column off view_factors
             
             %updating rad networks
                 
@@ -196,7 +197,7 @@ if confirm == "Y"
     
 results(1,:) = results(1,:)/(3600*672);
 %solar_results(1,:) = solar_results(1,:)/(3600*672);
-%rejection_results(1,:) = rejection_results(1,:)/(3600*672);
+rejection_results(1,:) = rejection_results(1,:)/(3600*672);
     
 clocks = num2str(clock);
     
