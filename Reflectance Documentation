@@ -1,0 +1,40 @@
+The model now uses relectance networks to more accurately simulate the effects of reflection temperature of a spacecraft. This document aims to explain the rationale and limitations behind this implementation.
+
+Introduction
+
+The implementation of reflection in this model takes place in 2 stages - the generation of 'reflection networks' which occurs only occasionally and then the calculation of heat transfers which occurs every timestep.
+
+Reflection Networks
+
+We can consider a group of faces with common view factors to form a 'heat network' of reflection. 
+The paper from which this model is inspired discusses this from an electrical network frame of reference. 
+The first challenge we find when implementing reflectance here then, is that this model does not use 'faces' but rather whole components, and as such 'opposite sides' of a component don't really exist.
+When a component belongs to a single network, all of it's radiated heat enters this network, and this is simple to work with.
+When a component is in 2 (or more) networks (for example a wall with a compartment on each side), we can find it's relative contribution to each network by comparing its total view factors with components in each network. 
+The problem arises when 2 components are both in the same 2 networks. Now we have a view factor common to each network and a split cannot be determined by the model (we simply do not provide enough information).
+The solution we have taken for this is to 'merge' these 2 networks into one. The advantage of this is that we can determine where our heat goes without having to guess or eliminate view factors. The major disadvantage is that some components are now in networks together when they shouldn't be. Practically, this means that heat shining onto our wall can be 'reflected' out the other side. Ultimately, it was decided that this was the 'least worst' option for implementing reflection.
+
+Once the networks have been generated, a variety of matrices that descibe them (such as their relative absorbtivities and view factors) are also created.
+
+
+Heat Calculations
+
+The heat leaving any component in this model is the same as ever - proportional to surface area, emmissivity and the fourth power of temperature.
+However, the heat in is dependent not only on the heat leaving components that it sees, but also on the heat reflecting off these components. 
+We aim to find a vector for each network which describes the total heat 'shining' off each component - both emmitted and reflected. It is then relatively simple to determine the heat inputs by having each component absorb the appropriate proportion of this 'shining' heat.
+
+To calculate our 'shining' heat vector (which we call H), we must solve a set of simultaneous equations. Each components H element is equal to its emitted heat, plus the proportion of other components 'shining' heat that it reflects. Calling the vector of emmitted heats h, we get:
+
+H = h + A*H 
+
+where A is a square matrix containing the adjusted view factors for the network. In general A(i,j) is the proportion of component j's 'shining' heat reflected by component i, so it is the reflectivity of component i multiplied by the proportion of j's view occupied by i within the network.
+
+This equation rearranges to give H = ((I-A)^(-1))*h.
+
+When the networks are created, these inverse matrices are also calculated and stored. MATLAB has a function "\" which would be faster than calculating inverses in a one-off scenario, but we are planning to re-use these so we calculate them fully.
+
+
+Limitations
+
+The merging of networks is not typically a major issue - heat that passes through walls can be transmitted to by emmission from the shared component in the next timestep regardless. However, it was found that the merging of the vacuum into mostly internal networks was causing excessive loss of heat from the system. To prevent this, the vacuum has been removed from all reflectance networks, and losses to it are considered seperately.
+In a similar vein, the lunar surface is restricted to networks with two components. These restrictions slightly hot-bias the model (since heat that would reflect off e.g. an antenna into space is instead conserved), but the error is likely less than the previous issue in almost all scenarios.
